@@ -5,10 +5,12 @@ import base64
 import shutil
 import os
 from flask_socketio import SocketIO
+from flask_cors import CORS
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "FLASK!"
 socketio = SocketIO(app)
+CORS(app)
 
 # Global variables to store video capture, processing status, and whether video streaming is active
 video_capture = None

@@ -99,7 +99,7 @@ socket.on('message_from_flask', function (data) {
                 // Once the server responds, set the video source
                 // document.getElementById("video_feed").src = "{{ url_for('video_feed') }}";
                 localStorage.setItem('stream','true')
-                window.location.href = '/'
+                window.location.href = '/live-stream'
 
             })
             .catch(error => {
