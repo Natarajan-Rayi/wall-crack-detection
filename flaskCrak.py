@@ -5,7 +5,7 @@ import base64
 import shutil
 import os
 from flask_socketio import SocketIO
-from flask_cors import CORS
+from flask_cors import CORS, cross_origin
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "FLASK!"
@@ -248,6 +248,7 @@ def stop_video():
     return jsonify({"message": "Video stream stopped"})
 
 @app.route('/video_feed')
+@cross_origin()
 def video_feed():
     return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
