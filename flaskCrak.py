@@ -198,6 +198,10 @@ def gen_frames():
 
 @app.route('/')
 def index():
+    return render_template('initial.html')
+
+@app.route('/home')
+def home():
     return render_template('home.html')
 
 @app.route('/live-stream')
