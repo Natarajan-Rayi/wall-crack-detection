@@ -19,7 +19,8 @@
             </div>
             <div class="col-md-6">
                 <img id="video_feed_initial" width="600" height="480" src="https://www.veeforu.com/wp-content/uploads/2023/04/Gaming-png-Live-stream-transparent-png-1024x576.png"/>
-                <img id="video_feed" style="display: none;" src="{{ url_for('video_feed') }}" width="600" height="480" autoplay>
+                <!-- <img id="video_feed" style="display: none;" src="{{ url_for('video_feed') }}" width="600" height="480" autoplay> -->
+                <img id="video_feed" style="display: none;" src="https://wall-crack-detection.onrender.com/video_feed" width="600" height="480" autoplay>
             </div>
             <div class="col-md-6">
                 <!-- <div class="text-center mt-5">
@@ -81,7 +82,7 @@ socket.on('message_from_flask', function (data) {
                 fetch('/start_video', { method: 'POST' })
             .then(response => {
                 // Once the server responds, set the video source
-                document.getElementById("video_feed").src = "{{ url_for('video_feed') }}";
+                document.getElementById("video_feed").src = "https://wall-crack-detection.onrender.com/video_feed";
                 // window.location.href = '/'
             })
             .catch(error => {
