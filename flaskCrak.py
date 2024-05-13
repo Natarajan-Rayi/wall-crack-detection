@@ -182,6 +182,27 @@ def perform_crack_detection(frame):
     return frame
 
 
+def generate_frames():
+    global video_capture, processing_status, video_streaming_active
+    processing_status = "Processing..."
+    video_streaming_active = True
+    video_capture = cv2.VideoCapture(0)  # Use 0 for the default camera
+    while True:
+        if video_capture is None:
+            break
+        success, frame = video_capture.read()  # Read a frame from the camera
+        if not success:
+            break
+        else:
+            # Perform crack detection on the frame
+            frame = perform_crack_detection(frame)
+            ret, buffer = cv2.imencode('.jpg', frame)
+            frame_bytes = buffer.tobytes()
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+
+
+
 def gen_frames():
     global video_capture
     while True:
@@ -248,9 +269,12 @@ def stop_video():
     return jsonify({"message": "Video stream stopped"})
 
 @app.route('/video_feed')
-@cross_origin()
+# @socketio.on('video_frame')
+# @cross_origin()
 def video_feed():
-    return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+    # return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 import base64
 

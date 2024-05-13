@@ -19,8 +19,7 @@
             </div>
             <div class="col-md-6">
                 <img id="video_feed_initial" width="600" height="480" src="https://www.veeforu.com/wp-content/uploads/2023/04/Gaming-png-Live-stream-transparent-png-1024x576.png"/>
-                <!-- <img id="video_feed" style="display: none;" src="{{ url_for('video_feed') }}" width="600" height="480" autoplay> -->
-                <img id="video_feed" style="display: none;" src="https://wall-crack-detection.onrender.com/video_feed" width="600" height="480" autoplay>
+                <img id="video_feed" style="display: none;" src="{{ url_for('video_feed') }}" width="600" height="480" autoplay>
             </div>
             <div class="col-md-6">
                 <!-- <div class="text-center mt-5">
@@ -82,7 +81,7 @@ socket.on('message_from_flask', function (data) {
                 fetch('/start_video', { method: 'POST' })
             .then(response => {
                 // Once the server responds, set the video source
-                document.getElementById("video_feed").src = "https://wall-crack-detection.onrender.com/video_feed";
+                document.getElementById("video_feed").src = "{{ url_for('video_feed') }}";
                 // window.location.href = '/'
             })
             .catch(error => {
@@ -90,30 +89,74 @@ socket.on('message_from_flask', function (data) {
             });
             }
         }
+
+        var videoElement = document.getElementById('video_feed');
+        var mediaStream = null;
+
         document.getElementById('start_button').addEventListener('click', function() {
+
             document.getElementById("video_feed").style.display = "block"
             document.getElementById("video_feed_initial").style.display = "none"
 
-            // fetch('/start_video', { method: 'POST' });
-            fetch('/start_video', { method: 'POST' })
-            .then(response => {
-                // Once the server responds, set the video source
-                // document.getElementById("video_feed").src = "{{ url_for('video_feed') }}";
-                localStorage.setItem('stream','true')
-                window.location.href = '/live-stream'
 
+                   // Start the video stream
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(function (stream) {
+                videoElement.srcObject = stream;
+                videoElement.play();
+                mediaStream = stream;
             })
-            .catch(error => {
+            .catch(function (error) {
                 console.error('Error starting video stream:', error);
             });
+
+            // // fetch('/start_video', { method: 'POST' });
+            // fetch('/start_video', { method: 'POST' })
+            // .then(response => {
+            //     // Once the server responds, set the video source
+            //     // document.getElementById("video_feed").src = "{{ url_for('video_feed') }}";
+            //     localStorage.setItem('stream','true')
+            //     window.location.href = '/live-stream'
+
+            // })
+            // .catch(error => {
+            //     console.error('Error starting video stream:', error);
+            // });
           
         });
 
-        document.getElementById('stop_button').addEventListener('click', function() {
-            document.getElementById("video_feed_initial").style.display = "block"
+        document.getElementById('stop_button').addEventListener('click', function() 
+        {
+
             document.getElementById("video_feed").style.display = "none"
-            fetch('/stop_video', { method: 'POST' });
+            document.getElementById("video_feed_initial").style.display = "block"
+
+            if (mediaStream) {
+            var tracks = mediaStream.getTracks();
+            tracks.forEach(function (track) {
+                track.stop();
+            });
+            videoElement.srcObject = null;
+            mediaStream = null;
+        }
+              // Stop the video stream
             localStorage.setItem('stream', 'false')
+
+            fetch('/stop_video', { method: 'POST' });
+
+        // var stream = videoElement.srcObject;
+        // if (stream) {
+        //     var tracks = stream.getTracks();
+        //     tracks.forEach(function (track) {
+        //         track.stop();
+        //     });
+        //     videoElement.srcObject = null;
+
+        // }
+        //     // document.getElementById("video_feed_initial").style.display = "block"
+        //     // document.getElementById("video_feed").style.display = "none"
+            // fetch('/stop_video', { method: 'POST' });
+            // localStorage.setItem('stream', 'false')
           
         });
     </script> 
