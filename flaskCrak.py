@@ -182,11 +182,29 @@ def perform_crack_detection(frame):
     return frame
 
 
+def find_camera_index():
+    for i in range(10):  # Try indices from 0 to 9
+        cap = cv2.VideoCapture(i)
+        if cap.isOpened():
+            print(f"Camera found at index {i}")
+            cap.release()
+            return i
+    print("No camera found")
+    return -1  # Return -1 if no camera is found
+
+
+#     # Proceed with your code using video_capture
+# else:
+#     print("Error: No camera detected")
+
 def generate_frames():
     # global video_capture
     # processing_status = "Processing..."
     # video_streaming_active = True
-    video_capture = cv2.VideoCapture(0)  # Use 0 for the default camera
+    # video_capture = cv2.VideoCapture(-1)  # Use 0 for the default camera
+    camera_index = find_camera_index()
+# if camera_index != -1:
+    video_capture = cv2.VideoCapture(camera_index)
     while True:
         if video_capture is None:
             break
