@@ -183,7 +183,7 @@ def perform_crack_detection(frame):
 
 
 def generate_frames():
-    global video_capture
+    # global video_capture
     # processing_status = "Processing..."
     # video_streaming_active = True
     video_capture = cv2.VideoCapture(0)  # Use 0 for the default camera
