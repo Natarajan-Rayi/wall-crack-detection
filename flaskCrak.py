@@ -902,60 +902,45 @@
 #     socketio.run(app, host='0.0.0.0', port=5000, debug=True)
 
 
-from flask import Flask, render_template, Response, request, jsonify, send_file
+from flask import Flask, render_template, Response
 import cv2
-import numpy as np
-import base64
-import shutil
-import os
 
 app = Flask(__name__)
 
-# Global variables to store video capture and processing status
-video_capture = None
-crack_count = 0
-
-def find_camera_index():
-    for i in range(10):  # Try indices from 0 to 9
-        cap = cv2.VideoCapture(i)
-        if cap.isOpened():
-            print(f"Camera found at index {i}")
-            cap.release()
-            return i
-    print("No camera found")
-    return -1  # Return -1 if no camera is found
-
 def generate_frames():
-    global video_capture, crack_count
-
     camera_index = find_camera_index()
     if camera_index != -1:
         video_capture = cv2.VideoCapture(camera_index)
+        if not video_capture.isOpened():
+            print("Error: Unable to open camera.")
+            return
         while True:
-            if video_capture is None:
-                break
-            success, frame = video_capture.read()  # Read a frame from the camera
+            success, frame = video_capture.read()
             if not success:
                 break
             else:
-                # Perform crack detection on the frame
                 frame = perform_crack_detection(frame)
                 ret, buffer = cv2.imencode('.jpg', frame)
                 frame_bytes = buffer.tobytes()
                 yield (b'--frame\r\n'
                        b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+        video_capture.release()
     else:
         print("Error: No camera detected")
 
-def perform_crack_detection(frame):
-    global crack_count
+def find_camera_index():
+    for i in range(10):
+        cap = cv2.VideoCapture(i)
+        if cap.isOpened():
+            print(f"Camera found at index {i}")
+            cap.release()
+            return i
+    print("Error: No camera found")
+    return -1
 
+def perform_crack_detection(frame):
     # Your crack detection code goes here
-    # This is just a placeholder, replace it with your actual crack detection algorithm
-    # Here we'll just draw a circle at the center of the frame
-    height, width, _ = frame.shape
-    cv2.circle(frame, (width // 2, height // 2), 50, (255, 0, 0), 2)
-    crack_count += 1  # Increment crack count for demonstration purposes
+    # For now, let's just return the frame as it is
     return frame
 
 @app.route('/')
