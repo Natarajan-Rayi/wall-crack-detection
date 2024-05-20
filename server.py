@@ -1,84 +1,73 @@
-# Import necessary modules
-from flask import Flask, render_template, Response, request, jsonify, redirect, url_for
-from aiortc import RTCPeerConnection, RTCSessionDescription
+from flask import Flask, render_template
+from flask_socketio import SocketIO, emit
 import cv2
-import json
-import uuid
-import asyncio
-import logging
-import time
+import numpy as np
 
-# Create a Flask app instance
-app = Flask(__name__, static_url_path='/static')
+app = Flask(__name__)
+app.config['SECRET_KEY'] = 'secret!'
+socketio = SocketIO(app)
 
-# Set to keep track of RTCPeerConnection instances
-pcs = set()
+crack_count = 0
 
-# Function to generate video frames from the camera
-def generate_frames():
-    camera = cv2.VideoCapture(0)
-    while True:
-        start_time = time.time()
-        success, frame = camera.read()
-        if not success:
-            break
-        else:
-            ret, buffer = cv2.imencode('.jpg', frame)
-            frame = buffer.tobytes()
-            # Concatenate frame and yield for streaming
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n') 
-            elapsed_time = time.time() - start_time
-            logging.debug(f"Frame generation time: {elapsed_time} seconds")
+def perform_crack_detection(frame):
+    global crack_count
 
-# Route to render the HTML template
+    # Reset crack count for each frame
+    crack_count = 0
+
+    # Calculate total area of the frame
+    total_area = frame.shape[0] * frame.shape[1]
+
+    # Crack detection code
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    ret, th1 = cv2.threshold(gray, 95, 255, cv2.THRESH_BINARY_INV)
+    contours, hierarchy = cv2.findContours(th1, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Filter contours to identify wall cracks
+    for contour in contours:
+        area = cv2.contourArea(contour)
+        if area > 100:  # Filter out small contours
+            perimeter = cv2.arcLength(contour, True)
+            if perimeter > 50:  # Filter out contours with small perimeter
+                # Filter out contours not located near the edges
+                x, y, w, h = cv2.boundingRect(contour)
+                if x > 10 and y > 10 and x + w < frame.shape[1] - 10 and y + h < frame.shape[0] - 10:
+                    cv2.drawContours(frame, [contour], -1, (0, 255, 0), 1)
+                    crack_count += 1
+
+                    # Draw rectangle around the detected crack
+                    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
+
+                    # Calculate percentage of crack area
+                    crack_area_percentage = (area / total_area) * 100
+
+                    # Display percentage on the frame
+                    cv2.putText(frame, f'{crack_area_percentage:.2f}%', (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+
+    # Display crack count on the frame
+    cv2.putText(frame, f'Wall Cracks: {crack_count}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+
+    return frame
+
 @app.route('/')
 def index():
     return render_template('index.html')
-    # return redirect(url_for('video_feed')) #to render live stream directly
 
-# Asynchronous function to handle offer exchange
-async def offer_async():
-    params = await request.json
-    offer = RTCSessionDescription(sdp=params["sdp"], type=params["type"])
+@socketio.on('frame')
+def handle_frame(data):
+    try:
+        # Decode the image
+        np_img = np.frombuffer(data, np.uint8)
+        frame = cv2.imdecode(np_img, cv2.IMREAD_COLOR)
 
-    # Create an RTCPeerConnection instance
-    pc = RTCPeerConnection()
+        # Perform crack detection on the frame
+        frame = perform_crack_detection(frame)
+        ret, buffer = cv2.imencode('.jpg', frame)
 
-    # Generate a unique ID for the RTCPeerConnection
-    pc_id = "PeerConnection(%s)" % uuid.uuid4()
-    pc_id = pc_id[:8]
+        # Emit the processed frame back to the client
+        emit('result', buffer.tobytes())
+    except Exception as e:
+        emit('error', {'error': str(e)})
 
-    # Create a data channel named "chat"
-    # pc.createDataChannel("chat")
-
-    # Create and set the local description
-    await pc.createOffer(offer)
-    await pc.setLocalDescription(offer)
-
-    # Prepare the response data with local SDP and type
-    response_data = {"sdp": pc.localDescription.sdp, "type": pc.localDescription.type}
-
-    return jsonify(response_data)
-
-# Wrapper function for running the asynchronous offer function
-def offer():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    
-    future = asyncio.run_coroutine_threadsafe(offer_async(), loop)
-    return future.result()
-
-# Route to handle the offer request
-@app.route('/offer', methods=['POST'])
-def offer_route():
-    return offer()
-
-# Route to stream video frames
-@app.route('/video_feed')
-def video_feed():
-    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
-
-# Run the Flask app
-if __name__ == "__main__":
-    app.run(debug=True, host='0.0.0.0')
+if __name__ == '__main__':
+    socketio.run(app, debug=True)

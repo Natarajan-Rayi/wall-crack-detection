@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Live Camera Stream</title>
+  <title>Live Camera Stream with Socket.IO</title>
   <style>
     body {
       display: flex;
@@ -13,7 +13,7 @@
       height: 100vh;
       background-color: #f0f0f0;
     }
-    video {
+    video, img {
       width: 80%;
       max-width: 600px;
       border: 2px solid #000;
@@ -29,22 +29,41 @@
 </head>
 <body>
   <video id="video" autoplay></video>
+  <img id="processedFrame" style="display:none;">
   <div>
     <button id="startButton">Start</button>
     <button id="stopButton">Stop</button>
   </div>
+  <div id="result"></div>
 
+  <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
   <script>
     const video = document.getElementById('video');
+    const processedFrame = document.getElementById('processedFrame');
     const startButton = document.getElementById('startButton');
     const stopButton = document.getElementById('stopButton');
+    const socket = io();
     let stream;
+    let animationFrameId;
+
+    socket.on('result', data => {
+      const blob = new Blob([data], { type: 'image/jpeg' });
+      const url = URL.createObjectURL(blob);
+      processedFrame.src = url;
+      processedFrame.style.display = 'block';
+      video.style.display = 'none';
+    });
+
+    socket.on('error', data => {
+      console.error('Error:', data.error);
+    });
 
     startButton.addEventListener('click', () => {
       navigator.mediaDevices.getUserMedia({ video: true })
         .then((mediaStream) => {
           stream = mediaStream;
           video.srcObject = stream;
+          startDetection();
         })
         .catch((error) => {
           console.error('Error accessing the camera', error);
@@ -57,7 +76,34 @@
         tracks.forEach(track => track.stop());
         video.srcObject = null;
       }
+      cancelAnimationFrame(animationFrameId);
     });
+
+    function startDetection() {
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+
+      function captureFrame() {
+        if (!video.videoWidth || !video.videoHeight) {
+          animationFrameId = requestAnimationFrame(captureFrame);
+          return;
+        }
+
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        canvas.toBlob(blob => {
+          blob.arrayBuffer().then(buffer => {
+            socket.emit('frame', new Uint8Array(buffer));
+          });
+        }, 'image/jpeg');
+
+        animationFrameId = requestAnimationFrame(captureFrame);
+      }
+
+      captureFrame();
+    }
   </script>
 </body>
 </html>
