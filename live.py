@@ -5,9 +5,11 @@ import numpy as np
 import base64
 import io
 from PIL import Image
+from engineio.async_drivers import gevent
+
 
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent')
 
 def detect_cracks(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -92,4 +94,4 @@ def handle_stream(data):
         print(f"Error processing frame: {e}")
 
 if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True)
+    socketio.run(app, host='0.0.0.0', port=5000)
