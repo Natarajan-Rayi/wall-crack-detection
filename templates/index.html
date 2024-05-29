@@ -1,109 +1,118 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Live Camera Stream with Socket.IO</title>
-  <style>
-    body {
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      background-color: #f0f0f0;
-    }
-    video, img {
-      width: 80%;
-      max-width: 600px;
-      border: 2px solid #000;
-      border-radius: 10px;
-      margin-bottom: 20px;
-    }
-    button {
-      padding: 10px 20px;
-      margin: 5px;
-      font-size: 16px;
-    }
-  </style>
+    <title>Live Stream Crack Detection</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+        #video {
+            display: none; /* Hide the video element */
+        }
+        canvas {
+            width: 100%;
+            max-width: 640px;
+            height: auto;
+        }
+        #controls {
+            margin-top: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 16px;
+        }
+    </style>
 </head>
 <body>
-  <video id="video" autoplay></video>
-  <img id="processedFrame" style="display:none;">
-  <div>
-    <button id="startButton">Start</button>
-    <button id="stopButton">Stop</button>
-  </div>
-  <div id="result"></div>
+    <h1>Live Stream Crack Detection</h1>
+    <video id="video" autoplay></video>
+    <canvas id="canvas"></canvas>
+    <div id="controls">
+        <button id="startBtn">Start Stream</button>
+        <button id="stopBtn" disabled>Stop Stream</button>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        // const socket = io('http://localhost:5000');
+        const socket = io('https://wall-crack-detection.onrender.com');
 
-  <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
-  <script>
-    const video = document.getElementById('video');
-    const processedFrame = document.getElementById('processedFrame');
-    const startButton = document.getElementById('startButton');
-    const stopButton = document.getElementById('stopButton');
-    const socket = io();
-    let stream;
-    let animationFrameId;
 
-    socket.on('result', data => {
-      const blob = new Blob([data], { type: 'image/jpeg' });
-      const url = URL.createObjectURL(blob);
-      processedFrame.src = url;
-      processedFrame.style.display = 'block';
-      video.style.display = 'none';
-    });
+        let streaming = false;
+        let stream = null;
 
-    socket.on('error', data => {
-      console.error('Error:', data.error);
-    });
-
-    startButton.addEventListener('click', () => {
-      navigator.mediaDevices.getUserMedia({ video: true })
-        .then((mediaStream) => {
-          stream = mediaStream;
-          video.srcObject = stream;
-          startDetection();
-        })
-        .catch((error) => {
-          console.error('Error accessing the camera', error);
-        });
-    });
-
-    stopButton.addEventListener('click', () => {
-      if (stream) {
-        const tracks = stream.getTracks();
-        tracks.forEach(track => track.stop());
-        video.srcObject = null;
-      }
-      cancelAnimationFrame(animationFrameId);
-    });
-
-    function startDetection() {
-      const canvas = document.createElement('canvas');
-      const context = canvas.getContext('2d');
-
-      function captureFrame() {
-        if (!video.videoWidth || !video.videoHeight) {
-          animationFrameId = requestAnimationFrame(captureFrame);
-          return;
+        function startStream() {
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(mediaStream => {
+                    stream = mediaStream;
+                    video.srcObject = stream;
+                    video.play();
+                    streaming = true;
+                    startBtn.disabled = true;
+                    stopBtn.disabled = false;
+                    sendFrame();
+                })
+                .catch(err => {
+                    console.error("Error accessing the camera: " + err);
+                });
         }
 
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        function stopStream() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+            streaming = false;
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+        }
 
-        canvas.toBlob(blob => {
-          blob.arrayBuffer().then(buffer => {
-            socket.emit('frame', new Uint8Array(buffer));
-          });
-        }, 'image/jpeg');
+        function sendFrame() {
+            if (!streaming) {
+                return;
+            }
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = canvas.toDataURL('image/jpeg');
+            socket.emit('stream', imageData);
+            setTimeout(sendFrame, 100); // Adjust the interval as needed
+        }
 
-        animationFrameId = requestAnimationFrame(captureFrame);
-      }
+        socket.on('response', function(data) {
+            console.log("Received processed frame");
+            const image = new Image();
+            image.src = 'data:image/jpeg;base64,' + data;
+            image.onload = function() {
+                ctx.drawImage(image, 0, 0);
+            };
+        });
 
-      captureFrame();
-    }
-  </script>
+        socket.on('connect', () => {
+            console.log("Connected to the server");
+        });
+
+        socket.on('disconnect', () => {
+            console.log("Disconnected from the server");
+        });
+
+        socket.on('error', (error) => {
+            console.error("WebSocket error observed:", error);
+        });
+
+        startBtn.addEventListener('click', startStream);
+        stopBtn.addEventListener('click', stopStream);
+    </script>
 </body>
 </html>
