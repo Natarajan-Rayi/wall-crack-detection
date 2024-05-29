@@ -48,9 +48,9 @@
         const ctx = canvas.getContext('2d');
         const startBtn = document.getElementById('startBtn');
         const stopBtn = document.getElementById('stopBtn');
-        // const socket = io('http://localhost:5000');
-        const socket = io('https://wall-crack-detection.onrender.com');
 
+        // Replace 'https://your-render-app-url.onrender.com' with your actual Render app URL
+        const socket = io('https://wall-crack-detection.onrender.com:5000');
 
         let streaming = false;
         let stream = null;
